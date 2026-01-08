@@ -323,6 +323,22 @@ def find_nearby_hospitals(latitude: float, longitude: float, radius: int = 5000)
                 
                 address = ', '.join(addr_parts) if addr_parts else 'Address not available'
                 
+                # Get opening hours
+                opening_hours = tags.get('opening_hours', '24/7' if tags.get('emergency') == 'yes' else 'Unknown')
+                
+                # Determine if open now (simple check)
+                from datetime import datetime
+                now = datetime.now()
+                is_open = None
+                if opening_hours == '24/7' or opening_hours == 'Mo-Su 00:00-24:00':
+                    is_open = True
+                elif opening_hours == 'Unknown':
+                    is_open = None
+                else:
+                    # For other formats, assume open during daytime
+                    current_hour = now.hour
+                    is_open = 8 <= current_hour < 20  # Simple heuristic
+                
                 hospital = {
                     'name': name,
                     'address': address,
@@ -332,7 +348,9 @@ def find_nearby_hospitals(latitude: float, longitude: float, radius: int = 5000)
                     'lat': lat,
                     'lon': lon,
                     'amenity': tags.get('amenity', 'hospital'),
-                    'emergency': tags.get('emergency', 'unknown')
+                    'emergency': tags.get('emergency', 'unknown'),
+                    'opening_hours': opening_hours,
+                    'is_open': is_open
                 }
                 
                 hospitals.append(hospital)

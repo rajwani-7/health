@@ -560,12 +560,14 @@ class EmergencyHealthAssistant {
                             <div class="flex-1">
                                 <h4 class="text-xl font-bold text-gray-900 mb-2">${hospital.name}</h4>
                                 <p class="text-gray-600 mb-3 text-sm">${hospital.address}</p>
-                                <div class="flex flex-wrap items-center gap-4 text-sm text-gray-500">
-                                    <span><i class="fas fa-phone mr-1"></i>${hospital.phone}</span>
-                                    ${hospital.rating ? `<span><i class="fas fa-star text-yellow-500 mr-1"></i>${hospital.rating}</span>` : ''}
+                                <div class="flex flex-wrap items-center gap-3 text-sm">
+                                    <span class="text-gray-500"><i class="fas fa-phone mr-1"></i>${hospital.phone}</span>
+                                    ${hospital.rating ? `<span class="text-gray-500"><i class="fas fa-star text-yellow-500 mr-1"></i>${hospital.rating}</span>` : ''}
                                     <span class="font-semibold text-blue-600"><i class="fas fa-map-marker-alt mr-1"></i>${hospital.distance}</span>
-                                    ${hospital.emergency && hospital.emergency !== 'unknown' ? `<span class="bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-bold">Emergency: ${hospital.emergency}</span>` : ''}
+                                    ${hospital.is_open === true ? '<span class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-bold inline-flex items-center"><i class="fas fa-circle text-green-500 mr-1 text-xs"></i>OPEN</span>' : hospital.is_open === false ? '<span class="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-bold inline-flex items-center"><i class="fas fa-circle text-red-500 mr-1 text-xs"></i>CLOSED</span>' : '<span class="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs font-bold">Hours Unknown</span>'}
+                                    ${hospital.emergency && hospital.emergency !== 'unknown' ? `<span class="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-bold">24/7 Emergency</span>` : ''}
                                 </div>
+                                ${hospital.opening_hours ? `<p class="text-xs text-gray-500 mt-2"><i class="fas fa-clock mr-1"></i>Hours: ${hospital.opening_hours}</p>` : ''}
                             </div>
                         </div>
                         <div class="flex flex-col space-y-3 ml-4">
