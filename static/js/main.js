@@ -1,12 +1,20 @@
-// Emergency Health Assistant - Main JavaScript
+// Emergency Health Assistant - Emergency-First Redesign
 
-class HealthAssistant {
+class EmergencyHealthAssistant {
     constructor() {
-        this.isRecording = false;
+        this.currentLocation = null;
         this.recognition = null;
         this.synthesis = window.speechSynthesis;
-        this.isDarkMode = false;
-        this.currentLocation = null;
+        this.map = null;
+        this.markers = [];
+        this.emergencySession = {
+            symptom: null,
+            isCaretaker: false,
+            caretakerData: {},
+            triageAnswers: [],
+            severity: null
+        };
+        this.currentQuestionIndex = 0;
         
         this.init();
     }
@@ -14,46 +22,113 @@ class HealthAssistant {
     init() {
         this.setupEventListeners();
         this.setupSpeechRecognition();
-        this.loadHealthHistory();
         this.getCurrentLocation();
+        this.loadHealthHistory();
     }
 
     setupEventListeners() {
-        // Form submission
-        document.getElementById('healthForm').addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.submitHealthCheck();
+        // Emergency Button
+        document.getElementById('emergencyButton').addEventListener('click', () => {
+            this.startEmergencyFlow();
         });
 
-        // Voice toggle
-        document.getElementById('voiceToggle').addEventListener('click', () => {
-            this.toggleVoiceSection();
+        // Voice Emergency Button
+        document.getElementById('voiceEmergencyButton').addEventListener('click', () => {
+            this.startVoiceEmergency();
         });
 
-        // Voice recording controls
-        document.getElementById('startRecording').addEventListener('click', () => {
-            this.startVoiceRecording();
+        // Caretaker Toggle
+        document.getElementById('caretakerToggle').addEventListener('click', () => {
+            this.toggleCaretakerMode();
         });
 
-        document.getElementById('stopRecording').addEventListener('click', () => {
+        // Caretaker Age Slider
+        document.getElementById('caretakerAge').addEventListener('input', (e) => {
+            document.getElementById('caretakerAgeDisplay').textContent = e.target.value;
+        });
+
+        // Consciousness Buttons
+        document.querySelectorAll('.consciousness-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.consciousness-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this.emergencySession.caretakerData.conscious = btn.dataset.conscious;
+            });
+        });
+
+        // Caretaker Continue
+        document.getElementById('caretakerContinue').addEventListener('click', () => {
+            this.emergencySession.isCaretaker = true;
+            this.emergencySession.caretakerData.age = document.getElementById('caretakerAge').value;
+            this.startEmergencyFlow();
+        });
+
+        // Symptom Selection
+        document.querySelectorAll('.symptom-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const symptom = btn.dataset.symptom;
+                if (symptom === 'other') {
+                    this.startVoiceEmergency();
+                } else {
+                    this.selectSymptom(symptom);
+                }
+            });
+        });
+
+        // Voice Modal Controls
+        document.getElementById('stopVoiceBtn').addEventListener('click', () => {
             this.stopVoiceRecording();
         });
 
-        // Theme toggle
-        document.getElementById('themeToggle').addEventListener('click', () => {
-            this.toggleTheme();
+        document.getElementById('cancelVoiceBtn').addEventListener('click', () => {
+            this.cancelVoiceInput();
         });
 
-        // Emergency actions
-        document.getElementById('findHospitals').addEventListener('click', () => {
+        // Triage Answer Buttons
+        document.querySelectorAll('.triage-answer-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.answerTriageQuestion(btn.dataset.answer);
+            });
+        });
+
+        // Emergency Result Actions
+        document.getElementById('callEmergencyBtn').addEventListener('click', () => {
+            this.callEmergency();
+        });
+
+        document.getElementById('findHospitalsBtn').addEventListener('click', () => {
             this.findNearbyHospitals();
         });
 
-        document.getElementById('callEmergency').addEventListener('click', () => {
-            this.callEmergencyServices();
+        // Detailed Form Toggle
+        document.getElementById('toggleDetailedForm').addEventListener('click', () => {
+            this.toggleDetailedForm();
         });
 
-        // Refresh history
+        // Detailed Health Form
+        document.getElementById('healthForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.submitDetailedHealthCheck();
+        });
+
+        // Hospital finder from detailed check
+        document.getElementById('findHospitals')?.addEventListener('click', () => {
+            this.findNearbyHospitals();
+        });
+
+        document.getElementById('callEmergency')?.addEventListener('click', () => {
+            this.callEmergency();
+        });
+
+        // History Toggle
+        document.getElementById('toggleHistory').addEventListener('click', () => {
+            const content = document.getElementById('historyContent');
+            const icon = document.querySelector('#toggleHistory i');
+            content.classList.toggle('hidden');
+            icon.classList.toggle('fa-chevron-down');
+            icon.classList.toggle('fa-chevron-up');
+        });
+
         document.getElementById('refreshHistory').addEventListener('click', () => {
             this.loadHealthHistory();
         });
@@ -65,126 +140,504 @@ class HealthAssistant {
             this.recognition = new SpeechRecognition();
             
             this.recognition.continuous = false;
-            this.recognition.interimResults = false;
+            this.recognition.interimResults = true;
             this.recognition.lang = 'en-US';
 
-            this.recognition.onstart = () => {
-                this.isRecording = true;
-                this.updateVoiceStatus('Listening... Speak your health details');
-                document.getElementById('startRecording').disabled = true;
-                document.getElementById('stopRecording').disabled = false;
-                document.getElementById('startRecording').classList.add('voice-recording');
-            };
-
             this.recognition.onresult = (event) => {
-                const transcript = event.results[0][0].transcript;
-                this.processVoiceInput(transcript);
+                const transcript = Array.from(event.results)
+                    .map(result => result[0])
+                    .map(result => result.transcript)
+                    .join('');
+                
+                document.getElementById('voiceTranscript').textContent = transcript;
+                
+                if (event.results[0].isFinal) {
+                    this.processVoiceEmergency(transcript);
+                }
             };
 
             this.recognition.onerror = (event) => {
                 console.error('Speech recognition error:', event.error);
-                this.updateVoiceStatus('Error: ' + event.error);
-                this.stopVoiceRecording();
+                document.getElementById('voiceStatus').textContent = 'Error: ' + event.error;
             };
 
             this.recognition.onend = () => {
-                this.stopVoiceRecording();
+                // Recognition ended
             };
-        } else {
-            console.warn('Speech recognition not supported');
-            document.getElementById('voiceToggle').style.display = 'none';
         }
     }
 
-    toggleVoiceSection() {
-        const voiceSection = document.getElementById('voiceSection');
-        const isHidden = voiceSection.classList.contains('hidden');
+    getCurrentLocation() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    this.currentLocation = {
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude
+                    };
+                },
+                (error) => {
+                    console.warn('Geolocation error:', error);
+                    this.showNotification('Location access needed for hospital finder', 'warning');
+                }
+            );
+        }
+    }
+
+    // ========== EMERGENCY FLOW ==========
+
+    startEmergencyFlow() {
+        // Hide all sections
+        document.getElementById('emergencyPanicMode').classList.add('hidden');
+        document.getElementById('caretakerMode').classList.add('hidden');
         
-        if (isHidden) {
-            voiceSection.classList.remove('hidden');
-            this.speak('Voice input activated. Click start recording to begin.');
+        // Show symptom selection
+        document.getElementById('symptomSelection').classList.remove('hidden');
+        document.getElementById('symptomSelection').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    toggleCaretakerMode() {
+        const mode = document.getElementById('caretakerMode');
+        const panic = document.getElementById('emergencyPanicMode');
+        
+        if (mode.classList.contains('hidden')) {
+            panic.classList.add('hidden');
+            mode.classList.remove('hidden');
+            mode.scrollIntoView({ behavior: 'smooth' });
         } else {
-            voiceSection.classList.add('hidden');
+            mode.classList.add('hidden');
+            panic.classList.remove('hidden');
+            this.emergencySession.isCaretaker = false;
         }
     }
 
-    startVoiceRecording() {
-        if (this.recognition) {
-            this.recognition.start();
+    selectSymptom(symptom) {
+        this.emergencySession.symptom = symptom;
+        
+        // Hide symptom selection
+        document.getElementById('symptomSelection').classList.add('hidden');
+        
+        // Start guided triage
+        this.startGuidedTriage(symptom);
+    }
+
+    async startGuidedTriage(symptom) {
+        this.showLoading(true);
+        
+        try {
+            const response = await fetch('/get_triage_questions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ symptom, ...this.emergencySession.caretakerData })
+            });
+
+            const result = await response.json();
+            
+            if (result.success) {
+                this.triageQuestions = result.questions;
+                this.currentQuestionIndex = 0;
+                this.showTriageQuestion();
+            } else {
+                // Fallback: skip to result with basic classification
+                this.classifyAndShowResult();
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            this.classifyAndShowResult();
+        } finally {
+            this.showLoading(false);
         }
+    }
+
+    showTriageQuestion() {
+        if (!this.triageQuestions || this.currentQuestionIndex >= this.triageQuestions.length) {
+            this.classifyAndShowResult();
+            return;
+        }
+
+        const question = this.triageQuestions[this.currentQuestionIndex];
+        
+        document.getElementById('questionText').textContent = question.text;
+        document.getElementById('questionCounter').textContent = 
+            `Question ${this.currentQuestionIndex + 1} of ${this.triageQuestions.length}`;
+        
+        const progress = ((this.currentQuestionIndex + 1) / this.triageQuestions.length) * 100;
+        document.getElementById('questionProgress').style.width = progress + '%';
+        
+        document.getElementById('triageQuestions').classList.remove('hidden');
+        document.getElementById('triageQuestions').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    answerTriageQuestion(answer) {
+        this.emergencySession.triageAnswers.push({
+            question: this.triageQuestions[this.currentQuestionIndex].text,
+            answer: answer
+        });
+
+        this.currentQuestionIndex++;
+        
+        if (this.currentQuestionIndex < this.triageQuestions.length) {
+            this.showTriageQuestion();
+        } else {
+            this.classifyAndShowResult();
+        }
+    }
+
+    async classifyAndShowResult() {
+        document.getElementById('triageQuestions').classList.add('hidden');
+        this.showLoading(true);
+
+        try {
+            const response = await fetch('/classify_emergency', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(this.emergencySession)
+            });
+
+            const result = await response.json();
+            
+            if (result.success) {
+                this.displayEmergencyResult(result);
+            } else {
+                this.showNotification('Error classifying emergency', 'error');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            this.showNotification('Network error', 'error');
+        } finally {
+            this.showLoading(false);
+        }
+    }
+
+    displayEmergencyResult(result) {
+        const severityBadge = document.getElementById('severityBadge');
+        const instructionsList = document.getElementById('instructionsList');
+
+        // Set severity badge
+        severityBadge.className = 'inline-block px-12 py-6 rounded-2xl text-3xl font-black mb-4';
+        
+        if (result.severity === 'emergency') {
+            severityBadge.className += ' bg-red-600 text-white';
+            severityBadge.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i>🔴 EMERGENCY';
+            this.speak('This is an emergency. Follow the instructions carefully.');
+        } else if (result.severity === 'warning') {
+            severityBadge.className += ' bg-yellow-500 text-white';
+            severityBadge.innerHTML = '<i class="fas fa-exclamation-circle mr-2"></i>🟡 NEEDS ATTENTION';
+            this.speak('This needs attention. Follow the instructions.');
+        } else {
+            severityBadge.className += ' bg-green-600 text-white';
+            severityBadge.innerHTML = '<i class="fas fa-check-circle mr-2"></i>🟢 STABLE';
+            this.speak('Situation appears stable.');
+        }
+
+        // Display instructions
+        instructionsList.innerHTML = '';
+        result.instructions.forEach((instruction, index) => {
+            const item = document.createElement('div');
+            item.className = 'bg-blue-50 border-l-4 border-blue-600 p-4 rounded-lg';
+            item.innerHTML = `
+                <div class="flex items-start space-x-3">
+                    <div class="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold flex-shrink-0">
+                        ${index + 1}
+                    </div>
+                    <p class="text-lg font-semibold text-gray-900">${instruction}</p>
+                </div>
+            `;
+            instructionsList.appendChild(item);
+        });
+
+        document.getElementById('emergencyResult').classList.remove('hidden');
+        document.getElementById('emergencyResult').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // ========== VOICE INPUT ==========
+
+    startVoiceEmergency() {
+        if (!this.recognition) {
+            this.showNotification('Voice input not supported on this browser', 'error');
+            return;
+        }
+
+        document.getElementById('voiceModal').classList.remove('hidden');
+        document.getElementById('voiceTranscript').textContent = '';
+        document.getElementById('voiceStatus').textContent = 'Listening...';
+        
+        this.recognition.start();
     }
 
     stopVoiceRecording() {
-        if (this.recognition && this.isRecording) {
+        if (this.recognition) {
             this.recognition.stop();
         }
-        
-        this.isRecording = false;
-        document.getElementById('startRecording').disabled = false;
-        document.getElementById('stopRecording').disabled = true;
-        document.getElementById('startRecording').classList.remove('voice-recording');
-        this.updateVoiceStatus('Voice recording stopped');
     }
 
-    processVoiceInput(transcript) {
-        this.updateVoiceStatus(`Recognized: "${transcript}"`);
+    cancelVoiceInput() {
+        if (this.recognition) {
+            this.recognition.stop();
+        }
+        document.getElementById('voiceModal').classList.add('hidden');
+    }
+
+    processVoiceEmergency(transcript) {
+        document.getElementById('voiceStatus').textContent = 'Processing...';
         
-        // Simple voice input processing
-        const words = transcript.toLowerCase().split(' ');
+        // Simple NLP: Extract keywords
+        const text = transcript.toLowerCase();
+        let detectedSymptom = 'other';
+
+        const keywords = {
+            chest_pain: ['chest pain', 'heart pain', 'chest hurt', 'chest pressure'],
+            breathing: ['breath', 'breathing', 'cant breathe', 'difficulty breathing', 'shortness of breath'],
+            fever: ['fever', 'temperature', 'hot', 'burning up'],
+            accident: ['accident', 'injury', 'hurt', 'fell', 'crash', 'bleeding'],
+            unconscious: ['unconscious', 'passed out', 'not responding', 'unresponsive', 'fainted']
+        };
+
+        for (const [symptom, terms] of Object.entries(keywords)) {
+            if (terms.some(term => text.includes(term))) {
+                detectedSymptom = symptom;
+                break;
+            }
+        }
+
+        document.getElementById('voiceModal').classList.add('hidden');
+        this.selectSymptom(detectedSymptom);
+    }
+
+    // ========== HOSPITALS & EMERGENCY ==========
+
+    async findNearbyHospitals() {
+        if (!this.currentLocation) {
+            this.showNotification('Location not available. Please enable location services.', 'error');
+            return;
+        }
+
+        this.showLoading(true);
+
+        try {
+            const response = await fetch('/find_hospitals', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    latitude: this.currentLocation.latitude,
+                    longitude: this.currentLocation.longitude
+                })
+            });
+
+            const result = await response.json();
+            console.log('Hospital API Response:', result);
+
+            if (result.success) {
+                console.log('Hospitals found:', result.hospitals.length);
+                this.initializeMap();
+                this.displayHospitals(result.hospitals);
+            } else {
+                this.showNotification('Error finding hospitals: ' + result.error, 'error');
+            }
+        } catch (error) {
+            console.error('Error finding hospitals:', error);
+            this.showNotification('Network error. Please try again.', 'error');
+        } finally {
+            this.showLoading(false);
+        }
+    }
+
+    initializeMap() {
+        const hospitalsSection = document.getElementById('hospitalsSection');
+        hospitalsSection.classList.remove('hidden');
         
-        // Extract numbers and map to fields
-        const numbers = transcript.match(/\d+(?:\.\d+)?/g);
-        if (numbers) {
-            const numValues = numbers.map(n => parseFloat(n));
+        if (!this.map) {
+            // Wait for the map container to be visible
+            setTimeout(() => {
+                this.map = L.map('map').setView([this.currentLocation.latitude, this.currentLocation.longitude], 14);
+
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                    maxZoom: 19
+                }).addTo(this.map);
+
+                const userIcon = L.divIcon({
+                    className: 'user-location-marker',
+                    html: '<div style="background: #3B82F6; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);"></div>',
+                    iconSize: [20, 20],
+                    iconAnchor: [10, 10]
+                });
+
+                L.marker([this.currentLocation.latitude, this.currentLocation.longitude], { icon: userIcon })
+                    .addTo(this.map)
+                    .bindPopup('<b>Your Location</b>');
+                
+                // Force map to recalculate size after initialization
+                setTimeout(() => {
+                    this.map.invalidateSize();
+                }, 100);
+            }, 100);
+        } else {
+            this.clearHospitalMarkers();
+            this.map.setView([this.currentLocation.latitude, this.currentLocation.longitude], 14);
+            // Force map to recalculate size
+            this.map.invalidateSize();
+        }
+    }
+
+    clearHospitalMarkers() {
+        this.markers.forEach(marker => this.map.removeLayer(marker));
+        this.markers = [];
+    }
+
+    displayHospitals(hospitals) {
+        const hospitalsSection = document.getElementById('hospitalsSection');
+        const hospitalsList = document.getElementById('hospitalsList');
+
+        console.log('displayHospitals called with:', hospitals);
+        console.log('Map object exists:', !!this.map);
+
+        // Wait for map to be initialized
+        const addHospitalsToMap = () => {
+            if (!this.map) {
+                setTimeout(addHospitalsToMap, 100);
+                return;
+            }
+
+            this.clearHospitalMarkers();
+            hospitalsList.innerHTML = '';
+
+            if (hospitals.length === 0) {
+                hospitalsList.innerHTML = '<p class="text-gray-600 text-center py-8">No hospitals found nearby. Try increasing location permissions or check your connection.</p>';
+                hospitalsSection.classList.remove('hidden');
+                hospitalsSection.scrollIntoView({ behavior: 'smooth' });
+                return;
+            }
+
+            hospitals.forEach((hospital, index) => {
+                console.log(`Hospital ${index + 1}:`, hospital);
+                
+                // Use REAL coordinates from API response
+                const lat = hospital.lat || (this.currentLocation.latitude + (Math.random() - 0.5) * 0.02);
+                const lng = hospital.lon || (this.currentLocation.longitude + (Math.random() - 0.5) * 0.02);
+                
+                console.log(`Hospital ${index + 1} coordinates: lat=${lat}, lng=${lng}`);
+
+                const hospitalIcon = L.divIcon({
+                    className: 'hospital-marker',
+                    html: `<div style="background: #EF4444; color: white; width: 30px; height: 30px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 10px rgba(239, 68, 68, 0.5); display: flex; align-items: center; justify-content: center; font-weight: bold;">${index + 1}</div>`,
+                    iconSize: [30, 30],
+                    iconAnchor: [15, 15]
+                });
+
+                console.log(`Adding marker for hospital ${index + 1} at [${lat}, ${lng}]`);
+
+                const marker = L.marker([lat, lng], { icon: hospitalIcon })
+                    .addTo(this.map)
+                    .bindPopup(`
+                        <div class="hospital-popup">
+                            <h4 style="font-weight: bold; margin-bottom: 8px;">${hospital.name}</h4>
+                            <p style="margin-bottom: 4px; font-size: 14px;">${hospital.address}</p>
+                            <p style="margin-bottom: 8px; font-size: 14px;"><i class="fas fa-phone"></i> ${hospital.phone}</p>
+                            ${hospital.amenity ? `<p style="font-size: 12px; color: #666;">Type: ${hospital.amenity}</p>` : ''}
+                            <div style="display: flex; gap: 8px; margin-top: 8px;">
+                                <a href="tel:${hospital.phone}" style="background: #3B82F6; color: white; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 12px;">
+                                    <i class="fas fa-phone"></i> Call
+                                </a>
+                                <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}" target="_blank" style="background: #10B981; color: white; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 12px;">
+                                    <i class="fas fa-directions"></i> Directions
+                                </a>
+                            </div>
+                        </div>
+                    `);
+
+                this.markers.push(marker);
+                console.log(`Marker added. Total markers: ${this.markers.length}`);
+
+                const hospitalCard = document.createElement('div');
+                hospitalCard.className = 'hospital-card bg-white border-2 border-gray-200 rounded-xl p-5 hover:shadow-xl transition-all cursor-pointer';
+                hospitalCard.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div class="flex items-start space-x-3 flex-1">
+                            <div class="bg-red-600 text-white w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg flex-shrink-0">
+                                ${index + 1}
+                            </div>
+                            <div class="flex-1">
+                                <h4 class="text-xl font-bold text-gray-900 mb-2">${hospital.name}</h4>
+                                <p class="text-gray-600 mb-3 text-sm">${hospital.address}</p>
+                                <div class="flex flex-wrap items-center gap-4 text-sm text-gray-500">
+                                    <span><i class="fas fa-phone mr-1"></i>${hospital.phone}</span>
+                                    ${hospital.rating ? `<span><i class="fas fa-star text-yellow-500 mr-1"></i>${hospital.rating}</span>` : ''}
+                                    <span class="font-semibold text-blue-600"><i class="fas fa-map-marker-alt mr-1"></i>${hospital.distance}</span>
+                                    ${hospital.emergency && hospital.emergency !== 'unknown' ? `<span class="bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-bold">Emergency: ${hospital.emergency}</span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex flex-col space-y-3 ml-4">
+                            <a href="tel:${hospital.phone}" 
+                               class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl transition duration-200 text-center font-bold">
+                                <i class="fas fa-phone mr-1"></i>Call
+                            </a>
+                            <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}" target="_blank"
+                               class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl transition duration-200 text-center font-bold">
+                                <i class="fas fa-directions mr-1"></i>Go
+                            </a>
+                        </div>
+                    </div>
+                `;
+
+                hospitalCard.addEventListener('click', (e) => {
+                    if (e.target.tagName !== 'A') {
+                        marker.openPopup();
+                        this.map.setView([lat, lng], 15);
+                    }
+                });
+
+                hospitalsList.appendChild(hospitalCard);
+            });
+
+            if (this.markers.length > 0) {
+                console.log('Fitting map bounds to markers...');
+                // Add user location marker to the bounds calculation
+                const userMarker = L.marker([this.currentLocation.latitude, this.currentLocation.longitude]);
+                const group = new L.featureGroup([userMarker, ...this.markers]);
+                this.map.fitBounds(group.getBounds().pad(0.15), {
+                    maxZoom: 14  // Prevent zooming out too far
+                });
+                
+                // Force map refresh after fitting bounds
+                setTimeout(() => {
+                    this.map.invalidateSize();
+                }, 100);
+            }
+
+            hospitalsSection.classList.remove('hidden');
+            hospitalsSection.scrollIntoView({ behavior: 'smooth' });
             
-            // Try to map numbers to appropriate fields based on context
-            if (words.includes('temperature') || words.includes('temp')) {
-                document.getElementById('temperature').value = numValues[0] || '';
-            }
-            if (words.includes('heart') || words.includes('pulse')) {
-                document.getElementById('heart_rate').value = numValues[0] || '';
-            }
-            if (words.includes('pressure') || words.includes('bp')) {
-                if (numValues.length >= 2) {
-                    document.getElementById('bp_sys').value = numValues[0] || '';
-                    document.getElementById('bp_dia').value = numValues[1] || '';
-                }
-            }
-            if (words.includes('oxygen') || words.includes('spo2')) {
-                document.getElementById('spo2').value = numValues[0] || '';
-            }
-            if (words.includes('age')) {
-                document.getElementById('age').value = numValues[0] || '';
-            }
-        }
-        
-        // Extract symptoms
-        const symptomKeywords = ['headache', 'fever', 'dizziness', 'nausea', 'pain', 'cough', 'fatigue'];
-        const foundSymptoms = symptomKeywords.filter(symptom => 
-            words.some(word => word.includes(symptom))
-        );
-        
-        if (foundSymptoms.length > 0) {
-            document.getElementById('symptoms').value = foundSymptoms.join(', ');
-        }
-        
-        this.speak('Voice input processed. Please review the form and submit.');
+            this.speak(`Found ${hospitals.length} ${hospitals.length === 1 ? 'hospital' : 'hospitals'} near you.`);
+        };
+
+        addHospitalsToMap();
     }
 
-    updateVoiceStatus(message) {
-        document.getElementById('voiceStatus').textContent = message;
-    }
-
-    speak(text) {
-        if (this.synthesis) {
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.rate = 0.9;
-            utterance.pitch = 1;
-            this.synthesis.speak(utterance);
+    callEmergency() {
+        const emergencyNumber = '911'; // Or local emergency number
+        if (confirm(`This will call ${emergencyNumber}. Continue?`)) {
+            window.location.href = `tel:${emergencyNumber}`;
         }
     }
 
-    async submitHealthCheck() {
+    // ========== DETAILED HEALTH CHECK ==========
+
+    toggleDetailedForm() {
+        const form = document.getElementById('detailedHealthForm');
+        const btn = document.getElementById('toggleDetailedForm');
+        
+        if (form.classList.contains('hidden')) {
+            form.classList.remove('hidden');
+            btn.innerHTML = '<i class="fas fa-chevron-up mr-2"></i>Hide Detailed Form';
+        } else {
+            form.classList.add('hidden');
+            btn.innerHTML = '<i class="fas fa-chevron-down mr-2"></i>Show Detailed Form';
+        }
+    }
+
+    async submitDetailedHealthCheck() {
         const formData = new FormData(document.getElementById('healthForm'));
         const data = {};
         
@@ -192,7 +645,6 @@ class HealthAssistant {
             data[key] = value ? (isNaN(value) ? value : parseFloat(value)) : 0;
         }
 
-        // Validate required fields
         if (!data.age || !data.temperature || !data.heart_rate) {
             this.showNotification('Please fill in at least Age, Temperature, and Heart Rate', 'error');
             return;
@@ -203,17 +655,14 @@ class HealthAssistant {
         try {
             const response = await fetch('/check_health', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
 
             const result = await response.json();
 
             if (result.success) {
-                this.displayResults(result);
-                this.speak(`Health analysis complete. Your status is ${result.status}. Score: ${result.score}`);
+                this.displayDetailedResults(result);
             } else {
                 this.showNotification('Error analyzing health data: ' + result.error, 'error');
             }
@@ -225,7 +674,7 @@ class HealthAssistant {
         }
     }
 
-    displayResults(result) {
+    displayDetailedResults(result) {
         const resultsSection = document.getElementById('resultsSection');
         const scoreCircle = document.getElementById('scoreCircle');
         const scoreValue = document.getElementById('scoreValue');
@@ -234,11 +683,9 @@ class HealthAssistant {
         const adviceList = document.getElementById('adviceList');
         const emergencySection = document.getElementById('emergencySection');
 
-        // Update score display
         scoreValue.textContent = result.score;
         statusText.textContent = result.status;
         
-        // Set status-specific styling
         scoreCircle.className = 'inline-flex items-center justify-center w-32 h-32 rounded-full text-white text-4xl font-bold mb-4 score-circle';
         
         if (result.status === 'Stable') {
@@ -252,7 +699,6 @@ class HealthAssistant {
             statusDescription.textContent = 'Immediate medical attention required!';
         }
 
-        // Display advice
         adviceList.innerHTML = '';
         result.advice.forEach(advice => {
             const li = document.createElement('li');
@@ -264,104 +710,18 @@ class HealthAssistant {
             adviceList.appendChild(li);
         });
 
-        // Show emergency section if needed
         if (result.status === 'Emergency') {
             emergencySection.classList.remove('hidden');
         } else {
             emergencySection.classList.add('hidden');
         }
 
-        // Show results
         resultsSection.classList.remove('hidden');
         resultsSection.scrollIntoView({ behavior: 'smooth' });
-
-        // Refresh history
         this.loadHealthHistory();
     }
 
-    async findNearbyHospitals() {
-        if (!this.currentLocation) {
-            this.showNotification('Location not available. Please enable location services.', 'error');
-            return;
-        }
-
-        this.showLoading(true);
-
-        try {
-            const response = await fetch('/find_hospitals', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    latitude: this.currentLocation.latitude,
-                    longitude: this.currentLocation.longitude
-                })
-            });
-
-            const result = await response.json();
-
-            if (result.success) {
-                this.displayHospitals(result.hospitals);
-            } else {
-                this.showNotification('Error finding hospitals: ' + result.error, 'error');
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            this.showNotification('Network error. Please try again.', 'error');
-        } finally {
-            this.showLoading(false);
-        }
-    }
-
-    displayHospitals(hospitals) {
-        const hospitalsSection = document.getElementById('hospitalsSection');
-        const hospitalsList = document.getElementById('hospitalsList');
-
-        hospitalsList.innerHTML = '';
-
-        if (hospitals.length === 0) {
-            hospitalsList.innerHTML = '<p class="text-gray-600 text-center">No hospitals found nearby.</p>';
-        } else {
-            hospitals.forEach(hospital => {
-                const hospitalCard = document.createElement('div');
-                hospitalCard.className = 'hospital-card bg-white border border-gray-200 rounded-lg p-4';
-                hospitalCard.innerHTML = `
-                    <div class="flex justify-between items-start">
-                        <div class="flex-1">
-                            <h4 class="text-lg font-semibold text-gray-900 mb-2">${hospital.name}</h4>
-                            <p class="text-gray-600 mb-2">${hospital.address}</p>
-                            <div class="flex items-center space-x-4 text-sm text-gray-500">
-                                <span><i class="fas fa-phone mr-1"></i>${hospital.phone}</span>
-                                <span><i class="fas fa-star mr-1"></i>${hospital.rating || 'N/A'}</span>
-                                <span><i class="fas fa-map-marker-alt mr-1"></i>${hospital.distance || 'N/A'}</span>
-                            </div>
-                        </div>
-                        <div class="flex flex-col space-y-2">
-                            <button onclick="window.open('tel:${hospital.phone}')" 
-                                    class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition duration-200">
-                                <i class="fas fa-phone mr-1"></i>Call
-                            </button>
-                            <button onclick="window.open('https://maps.google.com/?q=${encodeURIComponent(hospital.address)}')" 
-                                    class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition duration-200">
-                                <i class="fas fa-directions mr-1"></i>Directions
-                            </button>
-                        </div>
-                    </div>
-                `;
-                hospitalsList.appendChild(hospitalCard);
-            });
-        }
-
-        hospitalsSection.classList.remove('hidden');
-        hospitalsSection.scrollIntoView({ behavior: 'smooth' });
-    }
-
-    callEmergencyServices() {
-        // In a real application, this would integrate with emergency services
-        this.showNotification('Emergency services would be called. In a real app, this would dial 911.', 'info');
-        this.speak('Emergency services contacted. Help is on the way.');
-    }
+    // ========== HISTORY ==========
 
     async loadHealthHistory() {
         try {
@@ -380,7 +740,7 @@ class HealthAssistant {
         const historyList = document.getElementById('historyList');
 
         if (history.length === 0) {
-            historyList.innerHTML = '<p class="text-gray-600 text-center">No health check history available.</p>';
+            historyList.innerHTML = '<p class="text-gray-600 text-center py-4">No health check history available.</p>';
             return;
         }
 
@@ -388,10 +748,18 @@ class HealthAssistant {
 
         history.forEach(record => {
             const historyItem = document.createElement('div');
-            historyItem.className = 'history-item bg-gray-50 rounded-lg p-4';
+            historyItem.className = 'history-item bg-gray-50 rounded-lg p-4 border-l-4';
             
             const statusClass = record.status.toLowerCase();
             const date = new Date(record.date).toLocaleString();
+            
+            if (statusClass === 'stable') {
+                historyItem.style.borderColor = '#10b981';
+            } else if (statusClass === 'monitor') {
+                historyItem.style.borderColor = '#f59e0b';
+            } else {
+                historyItem.style.borderColor = '#ef4444';
+            }
             
             historyItem.innerHTML = `
                 <div class="flex justify-between items-start">
@@ -415,31 +783,15 @@ class HealthAssistant {
         });
     }
 
-    getCurrentLocation() {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    this.currentLocation = {
-                        latitude: position.coords.latitude,
-                        longitude: position.coords.longitude
-                    };
-                },
-                (error) => {
-                    console.warn('Geolocation error:', error);
-                }
-            );
-        }
-    }
+    // ========== UTILITIES ==========
 
-    toggleTheme() {
-        this.isDarkMode = !this.isDarkMode;
-        document.body.classList.toggle('dark-mode', this.isDarkMode);
-        
-        const themeIcon = document.querySelector('#themeToggle i');
-        themeIcon.className = this.isDarkMode ? 'fas fa-sun' : 'fas fa-moon';
-        
-        // Save theme preference
-        localStorage.setItem('darkMode', this.isDarkMode);
+    speak(text) {
+        if (this.synthesis) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = 0.9;
+            utterance.pitch = 1;
+            this.synthesis.speak(utterance);
+        }
     }
 
     showLoading(show) {
@@ -452,23 +804,22 @@ class HealthAssistant {
     }
 
     showNotification(message, type = 'info') {
-        // Create notification element
         const notification = document.createElement('div');
-        notification.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg transition-all duration-300 transform translate-x-full`;
+        notification.className = `fixed top-4 right-4 z-50 p-6 rounded-xl shadow-2xl transition-all duration-300 transform translate-x-full max-w-md`;
         
         const colors = {
-            success: 'bg-green-500 text-white',
-            error: 'bg-red-500 text-white',
-            info: 'bg-blue-500 text-white',
-            warning: 'bg-yellow-500 text-black'
+            success: 'bg-green-600 text-white',
+            error: 'bg-red-600 text-white',
+            info: 'bg-blue-600 text-white',
+            warning: 'bg-yellow-600 text-white'
         };
         
         notification.className += ` ${colors[type] || colors.info}`;
         notification.innerHTML = `
-            <div class="flex items-center space-x-2">
-                <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
-                <span>${message}</span>
-                <button onclick="this.parentElement.parentElement.remove()" class="ml-2 text-white hover:text-gray-200">
+            <div class="flex items-center space-x-3">
+                <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'} text-2xl"></i>
+                <span class="font-semibold text-lg">${message}</span>
+                <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white hover:text-gray-200">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -476,12 +827,10 @@ class HealthAssistant {
         
         document.body.appendChild(notification);
         
-        // Animate in
         setTimeout(() => {
             notification.classList.remove('translate-x-full');
         }, 100);
         
-        // Auto remove after 5 seconds
         setTimeout(() => {
             notification.classList.add('translate-x-full');
             setTimeout(() => {
@@ -493,16 +842,8 @@ class HealthAssistant {
     }
 }
 
-// Initialize the application when DOM is loaded
+// Initialize the application
 document.addEventListener('DOMContentLoaded', () => {
-    const app = new HealthAssistant();
-    
-    // Load saved theme preference
-    const savedTheme = localStorage.getItem('darkMode');
-    if (savedTheme === 'true') {
-        app.toggleTheme();
-    }
-    
-    // Make app globally available for debugging
-    window.healthAssistant = app;
+    const app = new EmergencyHealthAssistant();
+    window.emergencyAssistant = app;
 });

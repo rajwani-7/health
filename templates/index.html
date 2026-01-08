@@ -3,153 +3,340 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Emergency Health Assistant</title>
+    <title>Emergency Health Assistant - Get Help Now</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
 </head>
-<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
-    <!-- Navigation -->
-    <nav class="bg-white shadow-lg">
+<body class="bg-gradient-to-br from-red-50 to-orange-50 min-h-screen">
+    <!-- Simple Header -->
+    <nav class="bg-white shadow-md border-b-4 border-red-500">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-16">
+            <div class="flex justify-between items-center h-20">
                 <div class="flex items-center">
                     <div class="flex-shrink-0 flex items-center">
-                        <i class="fas fa-heartbeat text-red-500 text-2xl mr-2"></i>
-                        <h1 class="text-xl font-bold text-gray-900">Emergency Health Assistant</h1>
+                        <i class="fas fa-heartbeat text-red-600 text-3xl mr-3"></i>
+                        <div>
+                            <h1 class="text-2xl font-bold text-gray-900">Emergency Health Assistant</h1>
+                            <p class="text-sm text-gray-600">Quick help when you need it</p>
+                        </div>
                     </div>
                 </div>
-                <div class="flex items-center space-x-4">
-                    <button id="voiceToggle" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition duration-200">
-                        <i class="fas fa-microphone mr-2"></i>Voice Input
-                    </button>
-                    <button id="themeToggle" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg transition duration-200">
-                        <i class="fas fa-moon"></i>
-                    </button>
-                </div>
+                <button id="caretakerToggle" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-xl transition duration-200 font-semibold shadow-lg">
+                    <i class="fas fa-user-nurse mr-2"></i>Helping Someone Else
+                </button>
             </div>
         </div>
     </nav>
 
     <!-- Main Content -->
-    <div class="max-w-4xl mx-auto px-4 py-8">
-        <!-- Welcome Section -->
-        <div class="text-center mb-8">
-            <h2 class="text-3xl font-bold text-gray-900 mb-4">🩺 Quick Health Check</h2>
-            <p class="text-lg text-gray-600">Enter your health details or use voice input for instant analysis</p>
+    <div class="max-w-6xl mx-auto px-4 py-6">
+        
+        <!-- EMERGENCY PANIC MODE (PRIMARY) -->
+        <div id="emergencyPanicMode" class="mb-8">
+            <!-- Giant Emergency Button -->
+            <div class="text-center mb-8">
+                <button id="emergencyButton" class="emergency-panic-button bg-red-600 hover:bg-red-700 text-white px-16 py-12 rounded-3xl text-4xl font-black shadow-2xl transition-all duration-200 transform hover:scale-105 w-full max-w-2xl mx-auto">
+                    <i class="fas fa-exclamation-triangle mr-4 animate-pulse"></i>
+                    <div>I NEED HELP NOW</div>
+                    <p class="text-lg font-normal mt-4">Tap here for immediate assistance</p>
+                </button>
+            </div>
+
+            <!-- Voice Input Alternative -->
+            <div class="text-center mb-12">
+                <p class="text-xl text-gray-700 mb-4 font-semibold">OR</p>
+                <button id="voiceEmergencyButton" class="bg-white border-4 border-red-500 text-red-600 px-12 py-8 rounded-2xl text-2xl font-bold shadow-xl transition duration-200 hover:bg-red-50 max-w-2xl w-full mx-auto">
+                    <i class="fas fa-microphone text-4xl mb-3"></i>
+                    <div>Speak Your Emergency</div>
+                    <p class="text-base font-normal text-gray-600 mt-2">Tell us what's happening</p>
+                </button>
+            </div>
         </div>
 
-        <!-- Health Check Form -->
-        <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
-            <form id="healthForm" class="space-y-6">
-                <!-- Basic Info -->
+        <!-- SYMPTOM SELECTION (After Emergency Button) -->
+        <div id="symptomSelection" class="hidden">
+            <div class="bg-white rounded-2xl shadow-2xl p-8 mb-8">
+                <h2 class="text-3xl font-bold text-gray-900 mb-6 text-center">
+                    <i class="fas fa-question-circle text-red-600 mr-2"></i>
+                    What is happening?
+                </h2>
+                <p class="text-center text-gray-600 mb-8 text-lg">Select the main problem</p>
+                
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Age</label>
-                        <input type="number" id="age" name="age" min="1" max="120" 
-                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-                               placeholder="Enter your age">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Temperature (°C)</label>
-                        <input type="number" id="temperature" name="temperature" step="0.1" min="30" max="45" 
-                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-                               placeholder="e.g., 36.5">
-                    </div>
-                </div>
-
-                <!-- Vital Signs -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Heart Rate (BPM)</label>
-                        <input type="number" id="heart_rate" name="heart_rate" min="30" max="200" 
-                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-                               placeholder="e.g., 72">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Systolic BP</label>
-                        <input type="number" id="bp_sys" name="bp_sys" min="60" max="250" 
-                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-                               placeholder="e.g., 120">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Diastolic BP</label>
-                        <input type="number" id="bp_dia" name="bp_dia" min="40" max="150" 
-                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-                               placeholder="e.g., 80">
-                    </div>
-                </div>
-
-                <!-- Additional Info -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">SpO2 (%)</label>
-                        <input type="number" id="spo2" name="spo2" min="70" max="100" 
-                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-                               placeholder="e.g., 98">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Symptoms</label>
-                        <input type="text" id="symptoms" name="symptoms" 
-                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-                               placeholder="e.g., headache, fever, dizziness">
-                    </div>
-                </div>
-
-                <!-- Voice Input Section -->
-                <div id="voiceSection" class="hidden bg-blue-50 rounded-lg p-4">
-                    <div class="flex items-center justify-center space-x-4">
-                        <button id="startRecording" class="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-lg transition duration-200">
-                            <i class="fas fa-microphone mr-2"></i>Start Recording
-                        </button>
-                        <button id="stopRecording" class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-lg transition duration-200" disabled>
-                            <i class="fas fa-stop mr-2"></i>Stop Recording
-                        </button>
-                    </div>
-                    <div id="voiceStatus" class="text-center mt-4 text-gray-600"></div>
-                </div>
-
-                <!-- Submit Button -->
-                <div class="text-center">
-                    <button type="submit" id="submitBtn" 
-                            class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-lg text-lg font-semibold transition duration-200 shadow-lg">
-                        <i class="fas fa-stethoscope mr-2"></i>Check Health Status
+                    <button class="symptom-btn" data-symptom="chest_pain">
+                        <i class="fas fa-heart-broken text-5xl mb-4 text-red-600"></i>
+                        <div class="font-bold text-xl">Chest Pain</div>
+                    </button>
+                    <button class="symptom-btn" data-symptom="breathing">
+                        <i class="fas fa-lungs text-5xl mb-4 text-blue-600"></i>
+                        <div class="font-bold text-xl">Breathing Problem</div>
+                    </button>
+                    <button class="symptom-btn" data-symptom="fever">
+                        <i class="fas fa-temperature-high text-5xl mb-4 text-orange-600"></i>
+                        <div class="font-bold text-xl">High Fever</div>
+                    </button>
+                    <button class="symptom-btn" data-symptom="accident">
+                        <i class="fas fa-car-crash text-5xl mb-4 text-yellow-600"></i>
+                        <div class="font-bold text-xl">Accident / Injury</div>
+                    </button>
+                    <button class="symptom-btn" data-symptom="unconscious">
+                        <i class="fas fa-bed text-5xl mb-4 text-purple-600"></i>
+                        <div class="font-bold text-xl">Unconscious</div>
+                    </button>
+                    <button class="symptom-btn" data-symptom="other">
+                        <i class="fas fa-ellipsis-h text-5xl mb-4 text-gray-600"></i>
+                        <div class="font-bold text-xl">Other (Voice)</div>
                     </button>
                 </div>
-            </form>
+            </div>
         </div>
 
-        <!-- Results Section -->
-        <div id="resultsSection" class="hidden">
-            <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
-                <h3 class="text-2xl font-bold text-gray-900 mb-6">Health Analysis Results</h3>
-                
-                <!-- Score Display -->
-                <div id="scoreDisplay" class="text-center mb-6">
-                    <div id="scoreCircle" class="inline-flex items-center justify-center w-32 h-32 rounded-full text-white text-4xl font-bold mb-4">
-                        <span id="scoreValue">0</span>
+        <!-- VOICE INPUT MODAL -->
+        <div id="voiceModal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+            <div class="bg-white rounded-3xl p-8 max-w-lg w-full">
+                <h3 class="text-2xl font-bold text-gray-900 mb-6 text-center">Speak Now</h3>
+                <div class="text-center mb-6">
+                    <div id="voiceAnimation" class="voice-recording-animation mx-auto mb-4">
+                        <i class="fas fa-microphone text-6xl text-red-600"></i>
                     </div>
-                    <div id="statusText" class="text-2xl font-semibold mb-2"></div>
-                    <div id="statusDescription" class="text-gray-600"></div>
+                    <p id="voiceStatus" class="text-lg text-gray-700 font-semibold">Listening...</p>
+                    <p id="voiceTranscript" class="text-gray-600 mt-4 min-h-12"></p>
+                </div>
+                <div class="flex gap-4">
+                    <button id="stopVoiceBtn" class="flex-1 bg-red-600 hover:bg-red-700 text-white px-8 py-4 rounded-xl font-bold text-lg">
+                        <i class="fas fa-stop mr-2"></i>Stop
+                    </button>
+                    <button id="cancelVoiceBtn" class="flex-1 bg-gray-400 hover:bg-gray-500 text-white px-8 py-4 rounded-xl font-bold text-lg">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- CARETAKER MODE -->
+        <div id="caretakerMode" class="hidden">
+            <div class="bg-white rounded-2xl shadow-2xl p-8 mb-8">
+                <h2 class="text-3xl font-bold text-gray-900 mb-6 text-center">
+                    <i class="fas fa-user-nurse text-blue-600 mr-2"></i>
+                    Helping Someone Else
+                </h2>
+                
+                <div class="space-y-6">
+                    <!-- Approximate Age -->
+                    <div>
+                        <label class="block text-lg font-semibold text-gray-800 mb-3">Approximate Age</label>
+                        <input type="range" id="caretakerAge" min="0" max="100" value="30" 
+                               class="w-full h-4 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                        <div class="text-center mt-2">
+                            <span id="caretakerAgeDisplay" class="text-3xl font-bold text-blue-600">30</span>
+                            <span class="text-gray-600 ml-2">years</span>
+                        </div>
+                    </div>
+
+                    <!-- Consciousness Check -->
+                    <div>
+                        <label class="block text-lg font-semibold text-gray-800 mb-3">Is the person conscious?</label>
+                        <div class="grid grid-cols-2 gap-4">
+                            <button class="consciousness-btn active" data-conscious="yes">
+                                <i class="fas fa-check-circle text-4xl mb-2 text-green-600"></i>
+                                <div class="font-bold text-xl">YES</div>
+                            </button>
+                            <button class="consciousness-btn" data-conscious="no">
+                                <i class="fas fa-times-circle text-4xl mb-2 text-red-600"></i>
+                                <div class="font-bold text-xl">NO</div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Continue to Symptoms -->
+                    <button id="caretakerContinue" class="w-full bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 rounded-xl font-bold text-2xl shadow-lg">
+                        Continue <i class="fas fa-arrow-right ml-2"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- GUIDED TRIAGE (Max 3 Yes/No Questions) -->
+        <div id="triageQuestions" class="hidden">
+            <div class="bg-white rounded-2xl shadow-2xl p-8 mb-8">
+                <div class="mb-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-2xl font-bold text-gray-900">Quick Assessment</h2>
+                        <span id="questionCounter" class="text-gray-600 font-semibold">Question 1 of 3</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-3">
+                        <div id="questionProgress" class="bg-blue-600 h-3 rounded-full transition-all duration-300" style="width: 33%"></div>
+                    </div>
                 </div>
 
-                <!-- Advice Section -->
-                <div id="adviceSection" class="bg-gray-50 rounded-lg p-6">
-                    <h4 class="text-lg font-semibold text-gray-900 mb-4">Health Advice & Precautions</h4>
-                    <ul id="adviceList" class="space-y-2"></ul>
+                <div id="currentQuestion" class="mb-8">
+                    <p class="text-2xl font-semibold text-gray-900 mb-8 text-center" id="questionText">
+                        Loading question...
+                    </p>
+                    
+                    <div class="grid grid-cols-2 gap-6">
+                        <button class="triage-answer-btn" data-answer="yes">
+                            <i class="fas fa-check-circle text-6xl mb-4 text-green-600"></i>
+                            <div class="font-bold text-3xl">YES</div>
+                        </button>
+                        <button class="triage-answer-btn" data-answer="no">
+                            <i class="fas fa-times-circle text-6xl mb-4 text-red-600"></i>
+                            <div class="font-bold text-3xl">NO</div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- EMERGENCY RESULT & INSTRUCTIONS -->
+        <div id="emergencyResult" class="hidden">
+            <div class="bg-white rounded-2xl shadow-2xl p-8 mb-8">
+                <!-- Severity Badge -->
+                <div class="text-center mb-8">
+                    <div id="severityBadge" class="inline-block px-12 py-6 rounded-2xl text-3xl font-black mb-4">
+                        <!-- Dynamic: 🔴 EMERGENCY / 🟡 NEEDS ATTENTION / 🟢 STABLE -->
+                    </div>
+                </div>
+
+                <!-- Emergency Instructions -->
+                <div id="emergencyInstructions" class="mb-8">
+                    <h3 class="text-2xl font-bold text-gray-900 mb-6">
+                        <i class="fas fa-list-check text-blue-600 mr-2"></i>
+                        DO THIS NOW:
+                    </h3>
+                    <div id="instructionsList" class="space-y-4">
+                        <!-- Dynamic instructions will be added here -->
+                    </div>
                 </div>
 
                 <!-- Emergency Actions -->
-                <div id="emergencySection" class="hidden mt-6">
-                    <div class="bg-red-50 border border-red-200 rounded-lg p-6">
-                        <h4 class="text-lg font-semibold text-red-800 mb-4">🚨 Emergency Actions</h4>
-                        <div class="flex flex-col sm:flex-row gap-4">
-                            <button id="findHospitals" class="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg transition duration-200">
-                                <i class="fas fa-hospital mr-2"></i>Find Nearby Hospitals
-                            </button>
-                            <button id="callEmergency" class="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-lg transition duration-200">
-                                <i class="fas fa-phone mr-2"></i>Call Emergency Services
-                            </button>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <button id="callEmergencyBtn" class="emergency-action-btn bg-red-600 hover:bg-red-700">
+                        <i class="fas fa-phone-alt text-5xl mb-3"></i>
+                        <div class="font-bold text-2xl">Call Emergency</div>
+                        <p class="text-sm mt-2 opacity-90">Immediate help</p>
+                    </button>
+                    <button id="findHospitalsBtn" class="emergency-action-btn bg-blue-600 hover:bg-blue-700">
+                        <i class="fas fa-hospital text-5xl mb-3"></i>
+                        <div class="font-bold text-2xl">Find Hospitals</div>
+                        <p class="text-sm mt-2 opacity-90">Nearby locations</p>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- OPTIONAL: Detailed Health Check (NON-EMERGENCY) -->
+        <div class="bg-gray-100 border-2 border-gray-300 rounded-2xl shadow-lg p-8 mb-8">
+            <div class="text-center mb-6">
+                <span class="bg-gray-600 text-white px-4 py-2 rounded-full text-sm font-semibold uppercase">Non-Emergency Only</span>
+                <h2 class="text-2xl font-bold text-gray-900 mt-4 mb-2">Optional Detailed Health Check</h2>
+                <p class="text-gray-600">For routine checkups when you have time and medical equipment</p>
+            </div>
+            
+            <button id="toggleDetailedForm" class="w-full bg-gray-600 hover:bg-gray-700 text-white px-6 py-4 rounded-xl font-bold text-lg mb-6 transition">
+                <i class="fas fa-chevron-down mr-2"></i>Show Detailed Form
+            </button>
+
+            <div id="detailedHealthForm" class="hidden">
+                <form id="healthForm" class="space-y-6">
+                    <!-- Basic Info -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Age</label>
+                            <input type="number" id="age" name="age" min="1" max="120" 
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                                   placeholder="Enter your age">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Temperature (°C)</label>
+                            <input type="number" id="temperature" name="temperature" step="0.1" min="30" max="45" 
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                                   placeholder="e.g., 36.5">
+                        </div>
+                    </div>
+
+                    <!-- Vital Signs -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Heart Rate (BPM)</label>
+                            <input type="number" id="heart_rate" name="heart_rate" min="30" max="200" 
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                                   placeholder="e.g., 72">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Systolic BP</label>
+                            <input type="number" id="bp_sys" name="bp_sys" min="60" max="250" 
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                                   placeholder="e.g., 120">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Diastolic BP</label>
+                            <input type="number" id="bp_dia" name="bp_dia" min="40" max="150" 
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                                   placeholder="e.g., 80">
+                        </div>
+                    </div>
+
+                    <!-- Additional Info -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">SpO2 (%)</label>
+                            <input type="number" id="spo2" name="spo2" min="70" max="100" 
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                                   placeholder="e.g., 98">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Symptoms</label>
+                            <input type="text" id="symptoms" name="symptoms" 
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                                   placeholder="e.g., headache, fever, dizziness">
+                        </div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <div class="text-center">
+                        <button type="submit" id="submitBtn" 
+                                class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-lg text-lg font-semibold transition duration-200 shadow-lg">
+                            <i class="fas fa-stethoscope mr-2"></i>Analyze Vitals
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Results Section for Detailed Check -->
+                <div id="resultsSection" class="hidden mt-8">
+                    <div class="bg-white rounded-xl shadow-lg p-6">
+                        <h3 class="text-2xl font-bold text-gray-900 mb-6">Health Analysis Results</h3>
+                        
+                        <!-- Score Display -->
+                        <div id="scoreDisplay" class="text-center mb-6">
+                            <div id="scoreCircle" class="inline-flex items-center justify-center w-32 h-32 rounded-full text-white text-4xl font-bold mb-4">
+                                <span id="scoreValue">0</span>
+                            </div>
+                            <div id="statusText" class="text-2xl font-semibold mb-2"></div>
+                            <div id="statusDescription" class="text-gray-600"></div>
+                        </div>
+
+                        <!-- Advice Section -->
+                        <div id="adviceSection" class="bg-gray-50 rounded-lg p-6">
+                            <h4 class="text-lg font-semibold text-gray-900 mb-4">Health Advice & Precautions</h4>
+                            <ul id="adviceList" class="space-y-2"></ul>
+                        </div>
+
+                        <!-- Emergency Actions -->
+                        <div id="emergencySection" class="hidden mt-6">
+                            <div class="bg-red-50 border border-red-200 rounded-lg p-6">
+                                <h4 class="text-lg font-semibold text-red-800 mb-4">🚨 Emergency Actions</h4>
+                                <div class="flex flex-col sm:flex-row gap-4">
+                                    <button id="findHospitals" class="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg transition duration-200">
+                                        <i class="fas fa-hospital mr-2"></i>Find Nearby Hospitals
+                                    </button>
+                                    <button id="callEmergency" class="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-lg transition duration-200">
+                                        <i class="fas fa-phone mr-2"></i>Call Emergency Services
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -157,22 +344,37 @@
         </div>
 
         <!-- Hospitals Section -->
-        <div id="hospitalsSection" class="hidden">
-            <div class="bg-white rounded-xl shadow-lg p-6">
-                <h3 class="text-2xl font-bold text-gray-900 mb-6">Nearby Hospitals</h3>
+        <div id="hospitalsSection" class="hidden mb-8">
+            <div class="bg-white rounded-2xl shadow-2xl p-6">
+                <h3 class="text-2xl font-bold text-gray-900 mb-6">
+                    <i class="fas fa-map-marked-alt text-blue-600 mr-2"></i>Nearby Hospitals on Map
+                </h3>
+                <!-- Map Container -->
+                <div id="mapContainer" class="mb-6">
+                    <div id="map" class="rounded-lg shadow-md"></div>
+                </div>
+                <!-- Hospital List -->
+                <h4 class="text-xl font-semibold text-gray-800 mb-4">Hospital List</h4>
                 <div id="hospitalsList" class="space-y-4"></div>
             </div>
         </div>
 
-        <!-- Health History Section -->
-        <div class="bg-white rounded-xl shadow-lg p-6 mt-8">
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="text-2xl font-bold text-gray-900">Recent Health Checks</h3>
-                <button id="refreshHistory" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition duration-200">
-                    <i class="fas fa-refresh mr-2"></i>Refresh
-                </button>
+        <!--Recent Checks (History) - Collapsed by default -->
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <button id="toggleHistory" class="w-full flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-gray-900">
+                    <i class="fas fa-history mr-2"></i>Recent Health Checks
+                </h3>
+                <i class="fas fa-chevron-down text-gray-600"></i>
+            </button>
+            <div id="historyContent" class="hidden">
+                <div class="mb-4">
+                    <button id="refreshHistory" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition duration-200 text-sm">
+                        <i class="fas fa-refresh mr-2"></i>Refresh
+                    </button>
+                </div>
+                <div id="historyList" class="space-y-4"></div>
             </div>
-            <div id="historyList" class="space-y-4"></div>
         </div>
     </div>
 
@@ -185,6 +387,7 @@
     </div>
 
     <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>
