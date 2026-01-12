@@ -48,7 +48,7 @@ TRIAGE_QUESTIONS = {
 # Emergency Instructions
 EMERGENCY_INSTRUCTIONS = {
     'chest_pain_emergency': [
-        "Call 911 immediately - this may be a heart attack",
+        "Call 112 immediately - this may be a heart attack",
         "Have the person sit down and rest",
         "Loosen any tight clothing around the neck and chest",
         "If they have prescribed nitroglycerin, help them take it",
@@ -60,11 +60,11 @@ EMERGENCY_INSTRUCTIONS = {
         "Rest immediately and avoid any physical activity",
         "Sit in an upright position",
         "Loosen tight clothing",
-        "Monitor symptoms - call 911 if they worsen",
+        "Monitor symptoms - call 112 if they worsen",
         "Seek medical attention within the hour"
     ],
     'breathing_emergency': [
-        "Call 911 immediately",
+        "Call 112 immediately",
         "Help person sit upright - DO NOT lie them down",
         "Loosen tight clothing around neck and chest",
         "If they have an inhaler, help them use it",
@@ -73,7 +73,7 @@ EMERGENCY_INSTRUCTIONS = {
         "If they stop breathing, start CPR"
     ],
     'fever_emergency': [
-        "Call 911 immediately - high fever with these symptoms is serious",
+        "Call 112 immediately - high fever with these symptoms is serious",
         "Keep person cool - remove excess clothing",
         "Apply cool (not cold) wet cloths to forehead and neck",
         "Do NOT give them aspirin if under 18",
@@ -81,7 +81,7 @@ EMERGENCY_INSTRUCTIONS = {
         "Monitor consciousness - note any changes"
     ],
     'accident_emergency': [
-        "Call 911 immediately",
+        "Call 112 immediately",
         "Do NOT move the person if head/neck/back injury suspected",
         "If bleeding heavily, apply firm pressure with clean cloth",
         "Keep person still and calm",
@@ -90,7 +90,7 @@ EMERGENCY_INSTRUCTIONS = {
         "Monitor breathing and consciousness"
     ],
     'unconscious_emergency': [
-        "Call 911 IMMEDIATELY",
+        "Call 112 IMMEDIATELY",
         "Check if they're breathing - if not, start CPR",
         "If breathing, place in recovery position (on their side)",
         "Do NOT give them anything to eat or drink",

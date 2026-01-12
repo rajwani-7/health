@@ -618,7 +618,7 @@ class EmergencyHealthAssistant {
     }
 
     callEmergency() {
-        const emergencyNumber = '911'; // Or local emergency number
+        const emergencyNumber = '112'; // Or local emergency number
         if (confirm(`This will call ${emergencyNumber}. Continue?`)) {
             window.location.href = `tel:${emergencyNumber}`;
         }

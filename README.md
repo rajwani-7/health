@@ -86,7 +86,7 @@ Shows clear, actionable steps:
 
 ```
 DO THIS NOW:
-✓ Call 911 immediately
+✓ Call 112 immediately
 ✓ Have person sit down and rest  
 ✓ Loosen tight clothing
 ✓ Give aspirin if available
@@ -94,7 +94,7 @@ DO THIS NOW:
 ```
 
 Plus action buttons:
-- 📞 **Call Emergency** - Direct dial to 911
+- 📞 **Call Emergency** - Direct dial to 112
 - 🏥 **Find Hospitals** - Map with nearby locations
 
 ### 5️⃣ **Caretaker Mode**
@@ -215,7 +215,7 @@ pip
    🔴 EMERGENCY
    
    DO THIS NOW:
-   1. Call 911 immediately
+   1. Call 112 immediately
    2. Sit down and rest
    3. Loosen clothing
    4. Give aspirin if available
@@ -234,7 +234,7 @@ pip
    🔴 EMERGENCY
    
    DO THIS NOW:
-   1. Call 911 IMMEDIATELY
+   1. Call 112 IMMEDIATELY
    2. Check if breathing
    3. Place in recovery position
    4. Do NOT move if injury suspected
@@ -280,9 +280,9 @@ For real hospital data (default uses mock data):
 
 ### Emergency Number
 
-Default: 911 (US)
+Default: 112 (India)
 
-To change (e.g., 112 for EU):
+To change (e.g., 911 for US):
 ```javascript
 // static/js/main.js, line ~485
 callEmergency() {
@@ -334,12 +334,12 @@ CREATE TABLE health_records (
 
 ⚠️ **IMPORTANT**: This is an **assistive tool**, not a replacement for professional medical care.
 
-- Always call emergency services (911/112) for life-threatening situations
+- Always call emergency services (112/911) for life-threatening situations
 - Instructions are general guidelines, not personalized medical advice
 - The app cannot diagnose conditions
 - Severity classification is based on symptom patterns, not medical diagnosis
 
-**Medical Disclaimer**: This application provides general health information and emergency guidance only. It is not a substitute for professional medical advice, diagnosis, or treatment. Always seek the advice of your physician or other qualified health provider with any questions you may have regarding a medical condition. Never disregard professional medical advice or delay in seeking it because of something you have read or seen in this application. If you think you may have a medical emergency, call your doctor, go to the emergency department, or call 911 immediately.
+**Medical Disclaimer**: This application provides general health information and emergency guidance only. It is not a substitute for professional medical advice, diagnosis, or treatment. Always seek the advice of your physician or other qualified health provider with any questions you may have regarding a medical condition. Never disregard professional medical advice or delay in seeking it because of something you have read or seen in this application. If you think you may have a medical emergency, call your doctor, go to the emergency department, or call 112 immediately.
 
 ---
 
@@ -382,6 +382,6 @@ Built with ❤️ for people in their worst moments.
 
 ---
 
-**Remember**: In a real emergency, always call 911 or your local emergency number first. This app is here to help guide you while help is on the way.
+**Remember**: In a real emergency, always call 112 or your local emergency number first. This app is here to help guide you while help is on the way.
 
 🚑 Stay safe. 🩺
